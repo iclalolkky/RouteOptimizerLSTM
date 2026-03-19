@@ -3,24 +3,33 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
-from math import radians, cos, sin, asin, sqrt
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import folium
+import requests
 
 
-# Kus cusu Mesafe Hesaplama (Haversine)
-def haversine(lat1, lon1, lat2, lon2):
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    c = 2 * asin(sqrt(a))
-    r = 6371
-    return c * r * 1000
+def get_osrm_distance_matrix(konteynerler):
+    print("\nOSRM üzerinden yol mesafeleri hesaplanıyor...")
+    coords = ";".join([f"{k['boylam']},{k['enlem']}" for k in konteynerler])
+    url = f"http://router.project-osrm.org/table/v1/driving/{coords}?annotations=distance"
+
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            matrix = np.array(data['distances'], dtype=int)
+            print("Yol verisi başarıyla çekildi!")
+            return matrix
+        else:
+            print(f"OSRM API Hatası (Kod: {response.status_code}).")
+            return None
+    except Exception as e:
+        print(f"Bağlantı hatası: {e}")
+        return None
 
 
-def get_predictions_and_filter(veri_yolu, model_yolu, threshold=20):
+def get_predictions_and_filter(veri_yolu, model_yolu, threshold=28):
     print("Veriler ve Model yükleniyor...")
     df = pd.read_excel(veri_yolu)
     model = tf.keras.models.load_model(model_yolu)
@@ -40,7 +49,6 @@ def get_predictions_and_filter(veri_yolu, model_yolu, threshold=20):
 
         X_tahmin = np.reshape(son_5_veri, (1, 5, 1))
         tahmin_olcekli = model.predict(X_tahmin, verbose=0)
-
         tahmin_gercek = scaler.inverse_transform(tahmin_olcekli)[0][0]
 
         if tahmin_gercek >= threshold:
@@ -63,18 +71,14 @@ def create_route(konteynerler):
         return
 
     print("\nOR-Tools ile Rota Optimizasyonu Başlıyor...")
-
     num_locations = len(konteynerler)
-    distance_matrix = np.zeros((num_locations, num_locations), dtype=int)
 
-    for i in range(num_locations):
-        for j in range(num_locations):
-            if i != j:
-                dist = haversine(
-                    konteynerler[i]['enlem'], konteynerler[i]['boylam'],
-                    konteynerler[j]['enlem'], konteynerler[j]['boylam']
-                )
-                distance_matrix[i][j] = int(dist)
+    distance_matrix = get_osrm_distance_matrix(konteynerler)
+
+    if distance_matrix is None:
+        print(
+            "HATA: Yol verisi alınamadığı için rota optimizasyonu iptal edildi. Lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.")
+        return
 
     manager = pywrapcp.RoutingIndexManager(num_locations, 1, 0)
     routing = pywrapcp.RoutingModel(manager)
@@ -93,7 +97,7 @@ def create_route(konteynerler):
     solution = routing.SolveWithParameters(search_parameters)
 
     if solution:
-        print("\n--- OPTİMİZE EDİLMİŞ ÇÖP TOPLAMA ROTASI ---")
+        print("\n--- ÇÖP TOPLAMA ROTASI ---")
         index = routing.Start(0)
         rota_sirasi = []
         toplam_mesafe = 0
@@ -105,51 +109,38 @@ def create_route(konteynerler):
             index = solution.Value(routing.NextVar(index))
             toplam_mesafe += routing.GetArcCostForVehicle(previous_index, index, 0)
 
-        # Harita Gorsellestirme
         print("\nHarita oluşturuluyor...")
-
         baslangic_enlem = rota_sirasi[0]['enlem']
         baslangic_boylam = rota_sirasi[0]['boylam']
         harita = folium.Map(location=[baslangic_enlem, baslangic_boylam], zoom_start=15)
 
         koordinatlar_listesi = []
-
         for i, nokta in enumerate(rota_sirasi):
-            print(
-                f"{i + 1}. Durak: Konteyner {nokta['id']} (Tahmini Doluluk: %{nokta['tahmin_doluluk']}) -> Koordinat: {nokta['enlem']}, {nokta['boylam']}")
+            print(f"{i + 1}. Durak: Konteyner {nokta['id']} (Doluluk: %{nokta['tahmin_doluluk']})")
             koordinatlar_listesi.append([nokta['enlem'], nokta['boylam']])
 
             if i == 0:
-                renk = 'green'  # Baslangic yeşil
-                ikon = 'play'
+                renk, ikon = 'green', 'play'
             elif i == len(rota_sirasi) - 1:
-                renk = 'red'  # Bitis kırmızı
-                ikon = 'stop'
+                renk, ikon = 'red', 'stop'
             else:
-                renk = 'blue'  # Ara duraklar mavi
-                ikon = 'trash'
+                renk, ikon = 'blue', 'trash'
 
-            # Haritaya pinleri (marker) ekle
             folium.Marker(
                 location=[nokta['enlem'], nokta['boylam']],
                 popup=f"<b>{i + 1}. Durak</b><br>Konteyner: {nokta['id']}<br>Doluluk: %{nokta['tahmin_doluluk']}",
                 icon=folium.Icon(color=renk, icon=ikon)
             ).add_to(harita)
 
-        folium.PolyLine(
-            locations=koordinatlar_listesi,
-            color='red',
-            weight=3,
-            opacity=0.8
-        ).add_to(harita)
+        folium.PolyLine(locations=koordinatlar_listesi, color='red', weight=4, opacity=0.8).add_to(harita)
 
-        print(f"\nToplam Katedilecek Mesafe: {toplam_mesafe} metre")
+        print(f"\nToplam Katedilecek Yol Mesafesi: {toplam_mesafe} metre")
 
         harita_kayit_yolu = os.path.join(os.path.dirname(__file__), '..', 'optimize_rota_haritasi.html')
         harita.save(harita_kayit_yolu)
 
-        print(f"\n Rota başarıyla oluşturuldu!")
-        print(f" Bu dosyayı tarayıcıda açarak örnek rota haritasına ulaşabilirsiniz:\n {harita_kayit_yolu}")
+        mutlak_yol = os.path.abspath(harita_kayit_yolu).replace(os.sep, '/')
+        print(f" Oluşturulan rotayı haritada inceleyebilmek için bu linke tıklayın:\n   file:///{mutlak_yol}")
 
     else:
         print("Uygun bir rota bulunamadı!")
@@ -159,6 +150,5 @@ if __name__ == "__main__":
     veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi.xlsx')
     model_yolu = os.path.join(os.path.dirname(__file__), '..', 'models', 'lstm_doluluk_modeli.keras')
 
-    filtreli_konteynerler = get_predictions_and_filter(veri_yolu, model_yolu, threshold=20)
-
+    filtreli_konteynerler = get_predictions_and_filter(veri_yolu, model_yolu, threshold=28)
     create_route(filtreli_konteynerler)
