@@ -30,7 +30,7 @@ def build_and_train_lstm(X_train, y_train, epochs=10, batch_size=16):
 
 
 if __name__ == "__main__":
-    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi.xlsx')
+    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi_gercekci.xlsx')
     temiz_veri = load_and_clean_data(veri_yolu)
     X, y, scaler, islenmis_veri = prepare_lstm_data(temiz_veri, window_size=5)
 

@@ -55,7 +55,7 @@ def prepare_lstm_data(df, window_size=5):
 
 
 if __name__ == "__main__":
-    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi.xlsx')
+    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi_gercekci.xlsx')
 
     try:
         temiz_veri = load_and_clean_data(veri_yolu)

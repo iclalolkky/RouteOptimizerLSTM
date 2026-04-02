@@ -186,7 +186,7 @@ def create_route(konteynerler, vardiya_adi):
 
 
 if __name__ == "__main__":
-    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi.xlsx')
+    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi_gercekci.xlsx')
     model_yolu = os.path.join(os.path.dirname(__file__), '..', 'models', 'lstm_doluluk_modeli.keras')
 
     filtreli_konteynerler = get_predictions_and_filter(veri_yolu, model_yolu, threshold=28)
