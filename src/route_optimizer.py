@@ -1,21 +1,23 @@
 import os
 import logging
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-
+import pickle
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.cluster import KMeans
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import requests
 import math
 
+# TensorFlow uyarılarını gizle
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
+
 
 def get_osrm_distance_matrix(konteynerler):
+    """OSRM API üzerinden koordinatlar arası gerçek sürüş mesafelerini (metre) çeker."""
     coords = ";".join([f"{k['boylam']},{k['enlem']}" for k in konteynerler])
     url = f"http://router.project-osrm.org/table/v1/driving/{coords}?annotations=distance"
 
@@ -26,24 +28,30 @@ def get_osrm_distance_matrix(konteynerler):
             matrix = np.array(data['distances'], dtype=int)
             return matrix
         else:
-            print(f"OSRM API Hatası (Kod: {response.status_code}).")
+            print(f"[-] OSRM API Hatası (Kod: {response.status_code}).")
             return None
     except Exception as e:
-        print(f"Bağlantı hatası: {e}")
+        print(f"[-] Bağlantı hatası: {e}")
         return None
 
 
-def get_predictions_and_filter(veri_yolu, model_yolu, threshold=28):
-    print("Sistem Başlatılıyor: Veriler ve Model yükleniyor...")
+def get_predictions_and_filter(veri_yolu, model_yolu, scaler_yolu, threshold=40):
+    """LSTM modelini ve Scaler'ı kullanarak doluluk tahmini yapar ve sınırı aşanları filtreler."""
+    print("Sistem Başlatılıyor: Veriler, Model ve Scaler yükleniyor...")
+
     df = pd.read_excel(veri_yolu)
     model = tf.keras.models.load_model(model_yolu)
 
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    df['olcekli_doluluk'] = scaler.fit_transform(df[['doluluk_sayisal']])
+    # DİKKAT: Eğitilmiş Scaler yükleniyor (Yeniden fit EDİLMİYOR!)
+    with open(scaler_yolu, 'rb') as f:
+        scaler = pickle.load(f)
+
+    # Sadece transform işlemi yapıyoruz
+    df['olcekli_doluluk'] = scaler.transform(df[['doluluk_sayisal']])
 
     hedef_konteynerler = []
-
     konteyner_gruplari = df.groupby('konteyner_id')
+
     for konteyner_id, grup in konteyner_gruplari:
         grup = grup.sort_values(by=['tarih', 'saat'])
         son_5_veri = grup['olcekli_doluluk'].values[-5:]
@@ -51,8 +59,11 @@ def get_predictions_and_filter(veri_yolu, model_yolu, threshold=28):
         if len(son_5_veri) < 5:
             continue
 
+        # Tahmin için veriyi boyutlandır: (1 örnek, 5 zaman adımı, 1 özellik)
         X_tahmin = np.reshape(son_5_veri, (1, 5, 1))
         tahmin_olcekli = model.predict(X_tahmin, verbose=0)
+
+        # Çıkan sonucu gerçek doluluk yüzdesine (0-100) çevir
         tahmin_gercek = scaler.inverse_transform(tahmin_olcekli)[0][0]
 
         if tahmin_gercek >= threshold:
@@ -66,48 +77,66 @@ def get_predictions_and_filter(veri_yolu, model_yolu, threshold=28):
             })
 
     print(
-        f"Tahmin tamamlandı! %{threshold} üzeri doluluğa ulaşacak toplam {len(hedef_konteynerler)} konteyner bulundu.")
+        f"✅ Tahmin tamamlandı! %{threshold} üzeri doluluğa ulaşacak toplam {len(hedef_konteynerler)} konteyner bulundu.")
     return hedef_konteynerler
 
 
 def vardiyalara_bol(konteynerler):
-    depo = konteynerler[0]
+    """Konteynerleri K-Means algoritması ile Sabah ve Akşam olmak üzere iki coğrafi kümeye böler."""
+    if not konteynerler:
+        return [], []
+
+    depo = konteynerler[0]  # İlk elemanı sabit depo olarak kabul ediyoruz
     kalanlar = konteynerler[1:]
 
-    kalanlar_sirali = sorted(kalanlar, key=lambda x: x['enlem'])
-    orta_nokta = len(kalanlar_sirali) // 2
+    if len(kalanlar) > 1:
+        coords = np.array([[k['enlem'], k['boylam']] for k in kalanlar])
+        kmeans = KMeans(n_clusters=2, random_state=42, n_init=10)
+        kumeler = kmeans.fit_predict(coords)
+    else:
+        kumeler = [0] * len(kalanlar)
 
-    sabah_vardiyasi = [depo] + kalanlar_sirali[:orta_nokta]
-    aksam_vardiyasi = [depo] + kalanlar_sirali[orta_nokta:]
+    sabah_vardiyasi = [depo]
+    aksam_vardiyasi = [depo]
+
+    for i, kume_id in enumerate(kumeler):
+        if kume_id == 0:
+            sabah_vardiyasi.append(kalanlar[i])
+        else:
+            aksam_vardiyasi.append(kalanlar[i])
 
     return sabah_vardiyasi, aksam_vardiyasi
 
 
 def create_route(konteynerler, vardiya_adi):
-    if len(konteynerler) < 5:
-        print(f"\n[!] {vardiya_adi} için yeterli sayıda dolu konteyner yok.")
+    """Belirtilen vardiya için OR-Tools kullanarak optimum rotayı çizer."""
+    num_locations = len(konteynerler)
+
+    if num_locations < 2:
+        print(f"\n[!] {vardiya_adi} için toplanacak yeterli konteyner yok. Rota iptal.")
         return
 
     print(f"\n{'=' * 60}")
-    print(f" {vardiya_adi.upper()} ROTA RAPORU (5 KAMYON)")
+    print(f" 🚛 {vardiya_adi.upper()} ROTA RAPORU")
     print(f"{'=' * 60}")
     print("OSRM üzerinden karayolu mesafeleri hesaplanıyor...")
 
-    num_locations = len(konteynerler)
-    num_vehicles = 5
+    # Dinamik Araç Sayısı: Eğer toplanacak konteyner sayısı 5'ten azsa, araç sayısını düşür.
+    num_vehicles = min(5, num_locations - 1)
     depot = 0
 
     distance_matrix = get_osrm_distance_matrix(konteynerler)
 
     if distance_matrix is None:
-        print("HATA: Karayolu verisi alınamadı. Rota iptal edildi.")
+        print("[-] HATA: Karayolu verisi alınamadı. Rota iptal edildi.")
         return
 
-    print("Yol verisi başarıyla çekildi. Rota Optimizasyonu başlatılıyor (10 sn sürebilir)...")
+    print("✅ Yol verisi başarıyla çekildi. Rota Optimizasyonu başlatılıyor...")
 
     manager = pywrapcp.RoutingIndexManager(num_locations, num_vehicles, depot)
     routing = pywrapcp.RoutingModel(manager)
 
+    # --- 1. MESAFE BOYUTU ---
     def distance_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
@@ -116,18 +145,18 @@ def create_route(konteynerler, vardiya_adi):
     transit_callback_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-    dimension_name = 'Distance'
     routing.AddDimension(
         transit_callback_index,
-        0,
-        50000,
-        True,
-        dimension_name
+        0,  # Bekleme süresi yok
+        100000,  # Maksimum mesafe sınırı
+        True,  # Mesafeler sıfırdan başlar
+        'Distance'
     )
-    distance_dimension = routing.GetDimensionOrDie(dimension_name)
-    distance_dimension.SetGlobalSpanCostCoefficient(1000)
 
-    max_kapasite = math.ceil((num_locations - 1) / num_vehicles) + 1
+    # --- 2. KAPASİTE BOYUTU ---
+    # Araçların kapasitesini esnetiyoruz (+2). Böylece algoritma çözümsüzlüğe düşmez.
+    max_kapasite = int(math.ceil((num_locations - 1) / num_vehicles)) + 2
+
     demands = [0] + [1] * (num_locations - 1)
 
     def demand_callback(from_index):
@@ -135,18 +164,19 @@ def create_route(konteynerler, vardiya_adi):
         return demands[from_node]
 
     demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+
     routing.AddDimension(
         demand_callback_index,
-        0,
-        max_kapasite,
-        True,
+        0,  # Kapasite esnemesi yok
+        max_kapasite,  # Araç başına maksimum alınabilecek konteyner
+        True,  # Kapasite sayımı sıfırdan başlar
         'Capacity'
     )
 
+    # --- 3. ÇÖZÜM STRATEJİSİ ---
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     search_parameters.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-
     search_parameters.time_limit.seconds = 10
 
     solution = routing.SolveWithParameters(search_parameters)
@@ -164,7 +194,10 @@ def create_route(konteynerler, vardiya_adi):
                 if node_index == 0:
                     rota_guzergahi.append("DEPO")
                 else:
-                    rota_guzergahi.append(konteynerler[node_index]['id'])
+                    # Doluluk oranını da raporda gösterelim
+                    k_id = konteynerler[node_index]['id']
+                    k_doluluk = konteynerler[node_index]['tahmin_doluluk']
+                    rota_guzergahi.append(f"{k_id}(%{k_doluluk})")
 
                 previous_index = index
                 index = solution.Value(routing.NextVar(index))
@@ -173,6 +206,7 @@ def create_route(konteynerler, vardiya_adi):
             rota_guzergahi.append("DEPO")
             toplam_filo_mesafesi += arac_mesafesi
 
+            # Eğer kamyon depodan çıkıp en az 1 konteyner aldıysa raporla
             if len(rota_guzergahi) > 2:
                 print(f"\n🟢 Kamyon {vehicle_id + 1} Detayları:")
                 print(f"   Toplanan Konteyner : {len(rota_guzergahi) - 2} adet")
@@ -182,15 +216,22 @@ def create_route(konteynerler, vardiya_adi):
         print(f"\n🏁 {vardiya_adi} Toplam Filo Mesafesi: {toplam_filo_mesafesi} metre")
 
     else:
-        print("Uygun bir rota bulunamadı! (Matematiksel olarak çözülemedi)")
+        print("\n[-] Uygun bir rota bulunamadı! Kısıtlamalar çok dar veya mesafe verileri hatalı olabilir.")
 
 
 if __name__ == "__main__":
-    veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'bosna_hersek_cop_verisi_gercekci.xlsx')
-    model_yolu = os.path.join(os.path.dirname(__file__), '..', 'models', 'lstm_doluluk_modeli.keras')
+    # Dosya Yolları
+    base_dir = os.path.dirname(__file__)
+    veri_yolu = os.path.join(base_dir, '..', 'data', 'bosna_hersek_cop_verisi_gercekci.xlsx')
+    model_yolu = os.path.join(base_dir, '..', 'models', 'lstm_doluluk_modeli.keras')
+    scaler_yolu = os.path.join(base_dir, '..', 'models', 'scaler.pkl')  # Eğitimden gelen scaler!
 
-    filtreli_konteynerler = get_predictions_and_filter(veri_yolu, model_yolu, threshold=28)
+    # 1. Tahminleri al ve eşiği aşanları belirle (threshold=40 işlemi)
+    filtreli_konteynerler = get_predictions_and_filter(veri_yolu, model_yolu, scaler_yolu, threshold=40)
+
+    # 2. Seçilen konteynerleri iki coğrafi vardiyaya böl
     sabah_listesi, aksam_listesi = vardiyalara_bol(filtreli_konteynerler)
 
+    # 3. Kamyon rotalarını oluştur
     create_route(sabah_listesi, "Sabah Vardiyası")
     create_route(aksam_listesi, "Akşam Vardiyası")
