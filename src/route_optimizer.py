@@ -554,7 +554,7 @@ def create_route(konteynerler, vardiya_adi):
     if aktif_mesafeler:
         ortalama_mesafe = sum(aktif_mesafeler) / len(aktif_mesafeler)
         max_sapma = max(abs(mesafe - ortalama_mesafe) / ortalama_mesafe for mesafe in aktif_mesafeler)
-        print(f"\n📊 Mesafe Denge Sapması: %{max_sapma * 100:.1f} (hedef: ≤ %{DISTANCE_TOLERANCE_RATIO * 100:.0f})")
+        print(f"\n Mesafe Denge Sapması: %{max_sapma * 100:.1f} (hedef: ≤ %{DISTANCE_TOLERANCE_RATIO * 100:.0f})")
 
     print(f"\n🏁 {vardiya_adi} Toplam Filo Mesafesi: {toplam_filo_mesafesi} metre")
     harita_yolu = save_shift_map(vardiya_adi, truck_routes)
@@ -585,4 +585,4 @@ if __name__ == '__main__':
         'Akşam Vardiyası': aksam_sonuclari
     })
     if genel_harita:
-        print(f'🗺️ Genel rota haritası kaydedildi: {genel_harita}')
+        print(f'Genel rota haritası kaydedildi: {genel_harita}')

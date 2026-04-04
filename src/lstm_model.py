@@ -9,7 +9,7 @@ from data_preprocessing import load_and_clean_data, prepare_lstm_data
 
 
 def build_and_train_lstm(X_train, y_train, epochs=50, batch_size=16):
-    print("\n--- LSTM Modeli İnşa Ediliyor ---")
+    print("\n--- LSTM Modeli ---")
 
     model = Sequential([
         Input(shape=(X_train.shape[1], 1)),
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         pickle.dump(scaler, scaler_dosyasi)
 
     print("\n" + "=" * 50)
-    print("✅ EĞİTİM BAŞARIYLA TAMAMLANDI!")
-    print(f"📍 Eğitilen Model : {model_kayit_yolu}")
-    print(f"📍 Scaler Dosyası : {scaler_kayit_yolu}")
+    print(" EĞİTİM TAMAMLANDI!")
+    print(f" Eğitilen Model : {model_kayit_yolu}")
+    print(f" Scaler Dosyası : {scaler_kayit_yolu}")
     print("=" * 50)

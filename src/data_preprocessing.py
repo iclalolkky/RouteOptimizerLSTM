@@ -85,7 +85,7 @@ if __name__ == "__main__":
         print(X[0])
         print(f"Buna Karşılık Gelen Hedef Değer (y): {y[0]}")
 
-        print("\nVeri ön işleme adımı BAŞARIYLA tamamlandı! ✅")
+        print("\nVeri ön işleme adımı tamamlandı!")
 
     except FileNotFoundError:
         print(f"\nHATA: '{veri_yolu}' yolunda veri dosyası bulunamadı.")
