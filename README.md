@@ -47,10 +47,17 @@ Aşağıdaki iyileştirmeler yapıldı:
 Rota mantığı yeniden düzenlendi:
 
 - her vardiyada **5 kamyon** oluşturuluyor,
-- konteynerler kamyonlara **eşit sayıda** paylaştırılmaya çalışılıyor,
-- vardiyalar coğrafi olarak daha dengeli bölünüyor.
+- konteyner dağıtımı artık **eşit sayıda değil**, mesafe bazlı dengeleme öncelikli olacak şekilde yapılıyor,
+- uzak güzergahlara daha az konteyner atanarak kamyonlar arası toplam katedilen mesafe farkı azaltılmaya çalışılıyor.
 
-### 4) Gerçek yol geometrisiyle harita üretimi eklendi
+### 4) Mesafeye göre dinamik konteyner dağıtımı eklendi
+Yeni algoritma artık konteyner sayısını değil, **kamyon rotalarının toplam mesafesini** eşitlemeyi hedefliyor:
+
+- `route_optimizer.py` içinde kümelendirme ve dengeleme mantığı mesafe tabanlı olarak güncellendi,
+- sadece swap değil, rota mesafesi farkını azaltan taşıma/move adımları da değerlendiriliyor,
+- eğer dinamik dengeleme önceki duruma göre daha kötü sonuç verirse, stabil baseline hâliyle kalacak şekilde fallback mantarı konuldu.
+
+### 5) Gerçek yol geometrisiyle harita üretimi eklendi
 Harita çizimi artık OSRM `route/v1` kullanarak sokak/yol ağına oturan çizgiler üretir.
 
 Üretilen çıktılar:
@@ -76,7 +83,7 @@ Harita çizimi artık OSRM `route/v1` kullanarak sokak/yol ağına oturan çizgi
 
 ![Akşam Vardiyası Haritası](./docs/images/optimize_rota_haritasi_aksam_vardiyasi.png)
 
-### 5) macOS ortamı için çalışma kararlılığı sağlandı
+### 6) macOS ortamı için çalışma kararlılığı sağlandı
 Uygulama sırasında **TensorFlow + OR-Tools** birlikte kullanıldığında yerel (`native`) çökme problemi gözlendi.
 Bu yüzden mevcut çalışır sürümde rota sıralaması için **NumPy tabanlı greedy + dengeleme iyileştirmesi** kullanıldı.
 
@@ -91,7 +98,7 @@ Aşağıdaki sonuçlar doğrudan komut çalıştırılarak doğrulanmıştır.
 | Doğrulama | Komut | Sonuç |
 |---|---|---|
 | Veri ön işleme | `python src/data_preprocessing.py` | **Başarılı** – `1060` adet sequence üretildi |
-| Testler | `python -m unittest discover -s tests -v` | **2/2 test geçti** |
+| Testler | `python -m unittest discover -s tests -v` | **3/3 test geçti** |
 | Uçtan uca rota üretimi | `python src/route_optimizer.py` | **Başarılı** – rota raporları ve haritalar üretildi |
 
 ### `python src/route_optimizer.py` çıktısından öne çıkanlar
@@ -99,7 +106,7 @@ Aşağıdaki sonuçlar doğrudan komut çalıştırılarak doğrulanmıştır.
 - `%28` üstü doluluğa ulaşacak **100 konteyner** bulundu.
 - **Sabah vardiyası:** 5/5 kamyon aktif
 - **Akşam vardiyası:** 5/5 kamyon aktif
-- Her kamyon mevcut çalıştırmada **10 konteyner** aldı.
+- Konteyner dağılımı artık **mesafeye göre dinamik** olabiliyor.
 
 ### Vardiya bazlı mesafe özeti
 
@@ -107,6 +114,8 @@ Aşağıdaki sonuçlar doğrudan komut çalıştırılarak doğrulanmıştır.
 |---|---:|---:|---:|
 | Sabah | `27,949 m` | `%37.8` | `≤ %10` |
 | Akşam | `31,002 m` | `%24.9` | `≤ %10` |
+
+> Not: son kod değişiklikleriyle mesafe dengeleme mantığı mesafe tabanlı olarak güncellendi; mevcut ölçüm değerleri önceki sürümün bakiyesini gösteriyor ve yeni dağıtım algoritmasıyla yeniden değerlendirme devam ediyor.
 
 ---
 
@@ -132,7 +141,8 @@ Bunun ana nedeni LSTM değil, ağırlıklı olarak rota katmanıdır.
 
 - 5 kamyonu garanti ediyor,
 - gerçek yol mesafesini kullanıyor,
-- dengeleme için cluster + swap yaklaşımı uyguluyor,
+- dengeleme için artık **mesafe bazlı dinamik konteyner dağıtımı** uygulanıyor,
+- otomatik fallback ile yeni strateji beraberinde daha kötü sonuç verirse stabil baseline koruyor.
 
 ancak **çok sıkı (`±10%`) denge** için daha güçlü bir ikinci optimizasyon katmanı gerekebilir.
 
