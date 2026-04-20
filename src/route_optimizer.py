@@ -1,3 +1,4 @@
+
 import logging
 import math
 import os
@@ -20,7 +21,6 @@ EXPECTED_COLUMNS = [
     'konteyner_id', 'tarih', 'saat', 'gun', 'enlem', 'boylam',
     'doluluk_orani', 'doluluk_sayisal', 'harita_linki'
 ]
-
 
 class BasicMinMaxScaler:
     def __init__(self):
@@ -47,7 +47,6 @@ class BasicMinMaxScaler:
             return np.full_like(array, self.min_value)
         return (array * delta) + self.min_value
 
-
 def load_prediction_data(file_path):
     df = pd.read_excel(file_path)
 
@@ -71,16 +70,15 @@ def load_prediction_data(file_path):
         subset=['konteyner_id', 'tarih_saat', 'enlem', 'boylam', 'doluluk_sayisal']
     ).copy()
 
-
 def slugify(text):
     ceviri = str.maketrans('çğıöşüÇĞİÖŞÜ ', 'cgiosuCGIOSU_')
     temiz = text.translate(ceviri).lower()
     return re.sub(r'[^a-z0-9_]+', '_', temiz).strip('_')
 
-
 def get_osrm_distance_matrix(konteynerler):
     coords = ';'.join([f"{k['boylam']},{k['enlem']}" for k in konteynerler])
-    url = f"{OSRM_BASE_URL}/table/v1/driving/{coords}?annotations=distance"
+    approaches = ';'.join(['curb'] * len(konteynerler))  # OSRM sağdan yanaşma düzeltmesi
+    url = f"{OSRM_BASE_URL}/table/v1/driving/{coords}?annotations=distance&approaches={approaches}"
 
     try:
         response = requests.get(url, timeout=20)
@@ -97,7 +95,6 @@ def get_osrm_distance_matrix(konteynerler):
         print(f'Bağlantı hatası: {error}')
         return None
 
-
 def load_prediction_scaler(scaler_yolu, df):
     if scaler_yolu and os.path.exists(scaler_yolu):
         with open(scaler_yolu, 'rb') as scaler_dosyasi:
@@ -106,7 +103,6 @@ def load_prediction_scaler(scaler_yolu, df):
     scaler = BasicMinMaxScaler()
     scaler.fit(df[['doluluk_sayisal']])
     return scaler
-
 
 def get_predictions_and_filter(veri_yolu, model_yolu, scaler_yolu=None, threshold=40):
     import tensorflow as tf
@@ -151,7 +147,6 @@ def get_predictions_and_filter(veri_yolu, model_yolu, scaler_yolu=None, threshol
     )
     return hedef_konteynerler
 
-
 def build_depot(konteynerler):
     if not konteynerler:
         return {'id': 'DEPO', 'enlem': 0.0, 'boylam': 0.0, 'tahmin_doluluk': 0.0}
@@ -162,7 +157,6 @@ def build_depot(konteynerler):
         'boylam': float(np.median([item['boylam'] for item in konteynerler])),
         'tahmin_doluluk': 0.0
     }
-
 
 def vardiyalara_bol(konteynerler):
     if not konteynerler:
@@ -192,26 +186,27 @@ def vardiyalara_bol(konteynerler):
 
     return [depo] + sabah_vardiyasi, [depo] + aksam_vardiyasi
 
-
 def build_target_sizes(stop_count, num_vehicles):
     temel = stop_count // num_vehicles
     ekstra = stop_count % num_vehicles
     return [temel + (1 if vehicle_id < ekstra else 0) for vehicle_id in range(num_vehicles)]
 
+def get_workload(distance, count):
+    return distance + (count * 1500)
 
-def route_distance_gap(route_distances):
+
+def route_workload_gap(route_distances, route_counts):
     if not route_distances:
         return 0.0
-    aktif = [d for d in route_distances if d > 0]
-    if not aktif:
+    aktif_is_yukleri = [get_workload(d, c) for d, c in zip(route_distances, route_counts) if c > 0]
+    if not aktif_is_yukleri:
         return 0.0
-    ortalama = float(sum(aktif)) / len(aktif)
+    ortalama = float(sum(aktif_is_yukleri)) / len(aktif_is_yukleri)
     if ortalama == 0:
         return 0.0
-    max_mutlak = max(abs(d - ortalama) for d in aktif)
-    max_oransal = max(abs(d - ortalama) / ortalama for d in aktif)
+    max_mutlak = max(abs(yuk - ortalama) for yuk in aktif_is_yukleri)
+    max_oransal = max(abs(yuk - ortalama) / ortalama for yuk in aktif_is_yukleri)
     return max_oransal + (max_mutlak / 50000)
-
 
 def detect_outliers(distance_matrix, stop_indices):
     depot_distances = [distance_matrix[0][idx] for idx in stop_indices]
@@ -220,7 +215,6 @@ def detect_outliers(distance_matrix, stop_indices):
     median_dist = float(np.median(depot_distances))
     threshold = median_dist * 2.0
     return {idx for idx in stop_indices if distance_matrix[0][idx] > threshold}
-
 
 def split_into_equal_count_clusters(distance_matrix, num_vehicles=NUM_VEHICLES):
     stop_indices = list(range(1, len(distance_matrix)))
@@ -273,7 +267,6 @@ def split_into_equal_count_clusters(distance_matrix, num_vehicles=NUM_VEHICLES):
 
     return clusters
 
-
 def split_into_distance_balanced_clusters(distance_matrix, num_vehicles=NUM_VEHICLES):
     stop_indices = list(range(1, len(distance_matrix)))
     clusters = [[] for _ in range(num_vehicles)]
@@ -317,14 +310,15 @@ def split_into_balanced_clusters(distance_matrix, num_vehicles=NUM_VEHICLES):
     baseline_clusters = split_into_equal_count_clusters(distance_matrix, num_vehicles=num_vehicles)
     dynamic_clusters = split_into_distance_balanced_clusters(distance_matrix, num_vehicles=num_vehicles)
 
-    baseline_distances = [cluster_route_distance(distance_matrix, cluster) for cluster in baseline_clusters]
-    dynamic_distances = [cluster_route_distance(distance_matrix, cluster) for cluster in dynamic_clusters]
+    base_dist = [cluster_route_distance(distance_matrix, c) for c in baseline_clusters]
+    dyn_dist = [cluster_route_distance(distance_matrix, c) for c in dynamic_clusters]
+    base_count = [len(c) for c in baseline_clusters]
+    dyn_count = [len(c) for c in dynamic_clusters]
 
-    if route_distance_gap(dynamic_distances) <= route_distance_gap(baseline_distances):
+    if route_workload_gap(dyn_dist, dyn_count) <= route_workload_gap(base_dist, base_count):
         return dynamic_clusters
 
     return baseline_clusters
-
 
 def solve_single_vehicle_route(distance_matrix, node_indices):
     if not node_indices:
@@ -347,21 +341,23 @@ def solve_single_vehicle_route(distance_matrix, node_indices):
 
     return route, route_distance
 
-
 def cluster_route_distance(distance_matrix, cluster):
     _, route_distance = solve_single_vehicle_route(distance_matrix, cluster)
     return route_distance
-
 
 def refine_clusters_by_route_balance(distance_matrix, clusters, max_iterations=150):
     clusters = [list(cluster) for cluster in clusters]
     total_nodes = sum(len(cluster) for cluster in clusters)
 
     for _ in range(max_iterations):
-        route_distances = [cluster_route_distance(distance_matrix, cluster) for cluster in clusters]
-        high_idx = int(np.argmax(route_distances))
-        low_idx = int(np.argmin(route_distances))
-        current_gap = route_distances[high_idx] - route_distances[low_idx]
+        workloads = []
+        for cluster in clusters:
+            dist = cluster_route_distance(distance_matrix, cluster)
+            workloads.append(get_workload(dist, len(cluster)))
+
+        high_idx = int(np.argmax(workloads))
+        low_idx = int(np.argmin(workloads))
+        current_gap = workloads[high_idx] - workloads[low_idx]
 
         if current_gap <= 0:
             break
@@ -375,12 +371,19 @@ def refine_clusters_by_route_balance(distance_matrix, clusters, max_iterations=1
             if len(high_cluster) <= 1 and total_nodes >= len(clusters):
                 continue
 
-            new_high_distance = cluster_route_distance(
-                distance_matrix,
-                [node for node in high_cluster if node != high_node]
+            new_high_cluster = [node for node in high_cluster if node != high_node]
+            new_low_cluster = low_cluster + [high_node]
+
+            new_high_workload = get_workload(
+                cluster_route_distance(distance_matrix, new_high_cluster),
+                len(new_high_cluster)
             )
-            new_low_distance = cluster_route_distance(distance_matrix, low_cluster + [high_node])
-            new_gap = abs(new_high_distance - new_low_distance)
+            new_low_workload = get_workload(
+                cluster_route_distance(distance_matrix, new_low_cluster),
+                len(new_low_cluster)
+            )
+
+            new_gap = abs(new_high_workload - new_low_workload)
 
             if new_gap < best_gap:
                 best_gap = new_gap
@@ -399,9 +402,16 @@ def refine_clusters_by_route_balance(distance_matrix, clusters, max_iterations=1
                 new_high_cluster = [node if node != high_node else low_node for node in high_cluster]
                 new_low_cluster = [node if node != low_node else high_node for node in low_cluster]
 
-                new_high_distance = cluster_route_distance(distance_matrix, new_high_cluster)
-                new_low_distance = cluster_route_distance(distance_matrix, new_low_cluster)
-                new_gap = abs(new_high_distance - new_low_distance)
+                new_high_workload = get_workload(
+                    cluster_route_distance(distance_matrix, new_high_cluster),
+                    len(new_high_cluster)
+                )
+                new_low_workload = get_workload(
+                    cluster_route_distance(distance_matrix, new_low_cluster),
+                    len(new_low_cluster)
+                )
+
+                new_gap = abs(new_high_workload - new_low_workload)
 
                 if new_gap < best_gap:
                     best_gap = new_gap
@@ -417,7 +427,6 @@ def refine_clusters_by_route_balance(distance_matrix, clusters, max_iterations=1
         clusters[low_idx][low_position] = high_node
 
     return clusters
-
 
 def optimize_balanced_routes(konteynerler, num_vehicles=NUM_VEHICLES):
     distance_matrix = get_osrm_distance_matrix(konteynerler)
@@ -439,7 +448,6 @@ def optimize_balanced_routes(konteynerler, num_vehicles=NUM_VEHICLES):
         })
 
     return truck_routes, distance_matrix
-
 
 def create_route(konteynerler, vardiya_adi):
     print(f"\n{'=' * 60}")
@@ -471,7 +479,6 @@ def create_route(konteynerler, vardiya_adi):
     print(f"\n🏁 {vardiya_adi} Toplam Filo Mesafesi: {toplam_filo_mesafesi} metre")
 
     return truck_routes
-
 
 if __name__ == '__main__':
     veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'cop_veri_seti.xlsx')
