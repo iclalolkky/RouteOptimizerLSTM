@@ -4,6 +4,8 @@ import math
 import os
 import pickle
 import re
+import json
+from datetime import datetime
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -480,6 +482,50 @@ def create_route(konteynerler, vardiya_adi):
 
     return truck_routes
 
+
+def export_to_json(sabah_rotalari, aksam_rotalari, output_klasoru):
+
+    mobil_veri = {
+        "proje_adi": "Akıllı Atık Yönetimi",
+        "olusturulma_tarihi": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "vardiyalar": {
+            "sabah_vardiyasi": [],
+            "aksam_vardiyasi": []
+        }
+    }
+
+    def formatla(rotalar):
+        formatli_rotalar = []
+        for rota in rotalar:
+            guzergah = []
+
+            for point in rota['route_points']:
+                guzergah.append({
+                    "konteyner_id": point['id'],
+                    "enlem": point['enlem'],
+                    "boylam": point['boylam'],
+                    "tahmin_doluluk": point.get('tahmin_doluluk', 0.0)
+                })
+
+            formatli_rotalar.append({
+                "kamyon_id": rota['vehicle_id'],
+                "toplam_mesafe_metre": int(rota['distance']),
+                "toplanan_konteyner_sayisi": rota['pickup_count'],
+                "guzergah": guzergah
+            })
+        return formatli_rotalar
+
+    mobil_veri["vardiyalar"]["sabah_vardiyasi"] = formatla(sabah_rotalari)
+    mobil_veri["vardiyalar"]["aksam_vardiyasi"] = formatla(aksam_rotalari)
+
+    os.makedirs(output_klasoru, exist_ok=True)
+
+    dosya_yolu = os.path.join(output_klasoru, 'gunluk_rotalar.json')
+    with open(dosya_yolu, 'w', encoding='utf-8') as f:
+        json.dump(mobil_veri, f, ensure_ascii=False, indent=4)
+
+    print(f"\nMobil uygulama için JSON çıktısı '{dosya_yolu}' konumuna kaydedildi!")
+
 if __name__ == '__main__':
     veri_yolu = os.path.join(os.path.dirname(__file__), '..', 'data', 'cop_veri_seti.xlsx')
     model_yolu = os.path.join(os.path.dirname(__file__), '..', 'models', 'lstm_doluluk_modeli.keras')
@@ -497,3 +543,5 @@ if __name__ == '__main__':
     aksam_sonuclari = create_route(aksam_listesi, 'Akşam Vardiyası')
 
     print("\n Tüm vardiya rotaları hesaplandı.")
+    output_klasoru = os.path.join(os.path.dirname(__file__), '..', 'output')
+    export_to_json(sabah_sonuclari, aksam_sonuclari, output_klasoru)

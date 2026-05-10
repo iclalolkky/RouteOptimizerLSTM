@@ -1,0 +1,404 @@
+{
+  "timestamp": "2026-05-10T19:24:50.649421",
+  "vardiya": "Sabah Vardiyası",
+  "toplam_kamyon": 5,
+  "toplam_mesafe_metre": 33755,
+  "toplam_konteyner": 50,
+  "kamyonlar": [
+    {
+      "kamyon_id": 1,
+      "konteyner_sayisi": 13,
+      "mesafe_metre": 2590,
+      "rota": [
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        },
+        {
+          "konteyner_id": "K012",
+          "enlem": 38.009339,
+          "boylam": 32.523279,
+          "tahmin_doluluk": 58.65
+        },
+        {
+          "konteyner_id": "K011",
+          "enlem": 38.009391,
+          "boylam": 32.522959,
+          "tahmin_doluluk": 58.21
+        },
+        {
+          "konteyner_id": "K038",
+          "enlem": 38.009498,
+          "boylam": 32.523218,
+          "tahmin_doluluk": 58.86
+        },
+        {
+          "konteyner_id": "K015",
+          "enlem": 38.009484,
+          "boylam": 32.524027,
+          "tahmin_doluluk": 57.81
+        },
+        {
+          "konteyner_id": "K014",
+          "enlem": 38.009432,
+          "boylam": 32.523727,
+          "tahmin_doluluk": 59.18
+        },
+        {
+          "konteyner_id": "K022",
+          "enlem": 38.009642,
+          "boylam": 32.525789,
+          "tahmin_doluluk": 59.6
+        },
+        {
+          "konteyner_id": "K024",
+          "enlem": 38.009662,
+          "boylam": 32.526203,
+          "tahmin_doluluk": 58.16
+        },
+        {
+          "konteyner_id": "K100",
+          "enlem": 38.010956,
+          "boylam": 32.525491,
+          "tahmin_doluluk": 55.35
+        },
+        {
+          "konteyner_id": "K098",
+          "enlem": 38.010454,
+          "boylam": 32.525461,
+          "tahmin_doluluk": 53.95
+        },
+        {
+          "konteyner_id": "K040",
+          "enlem": 38.010108,
+          "boylam": 32.523246,
+          "tahmin_doluluk": 59.05
+        },
+        {
+          "konteyner_id": "K034",
+          "enlem": 38.008337,
+          "boylam": 32.523189,
+          "tahmin_doluluk": 60.17
+        },
+        {
+          "konteyner_id": "K081",
+          "enlem": 38.008373,
+          "boylam": 32.524196,
+          "tahmin_doluluk": 55.55
+        },
+        {
+          "konteyner_id": "K089",
+          "enlem": 38.00783,
+          "boylam": 32.525107,
+          "tahmin_doluluk": 53.96
+        },
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        }
+      ]
+    },
+    {
+      "kamyon_id": 2,
+      "konteyner_sayisi": 11,
+      "mesafe_metre": 5028,
+      "rota": [
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        },
+        {
+          "konteyner_id": "K010",
+          "enlem": 38.009307,
+          "boylam": 32.522745,
+          "tahmin_doluluk": 60.13
+        },
+        {
+          "konteyner_id": "K036",
+          "enlem": 38.008966,
+          "boylam": 32.523255,
+          "tahmin_doluluk": 59.04
+        },
+        {
+          "konteyner_id": "K017",
+          "enlem": 38.009471,
+          "boylam": 32.524511,
+          "tahmin_doluluk": 58.9
+        },
+        {
+          "konteyner_id": "K019",
+          "enlem": 38.009532,
+          "boylam": 32.52499,
+          "tahmin_doluluk": 58.68
+        },
+        {
+          "konteyner_id": "K085",
+          "enlem": 38.008498,
+          "boylam": 32.525523,
+          "tahmin_doluluk": 54.28
+        },
+        {
+          "konteyner_id": "K016",
+          "enlem": 38.009459,
+          "boylam": 32.52428,
+          "tahmin_doluluk": 59.51
+        },
+        {
+          "konteyner_id": "K041",
+          "enlem": 38.010338,
+          "boylam": 32.523282,
+          "tahmin_doluluk": 58.68
+        },
+        {
+          "konteyner_id": "K004",
+          "enlem": 38.009179,
+          "boylam": 32.521233,
+          "tahmin_doluluk": 58.64
+        },
+        {
+          "konteyner_id": "K003",
+          "enlem": 38.00919,
+          "boylam": 32.520954,
+          "tahmin_doluluk": 59.16
+        },
+        {
+          "konteyner_id": "K057",
+          "enlem": 38.009117,
+          "boylam": 32.520798,
+          "tahmin_doluluk": 57.54
+        },
+        {
+          "konteyner_id": "K063",
+          "enlem": 38.010671,
+          "boylam": 32.523714,
+          "tahmin_doluluk": 56.3
+        },
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        }
+      ]
+    },
+    {
+      "kamyon_id": 3,
+      "konteyner_sayisi": 11,
+      "mesafe_metre": 5024,
+      "rota": [
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        },
+        {
+          "konteyner_id": "K079",
+          "enlem": 38.008421,
+          "boylam": 32.523611,
+          "tahmin_doluluk": 54.25
+        },
+        {
+          "konteyner_id": "K025",
+          "enlem": 38.009725,
+          "boylam": 32.526468,
+          "tahmin_doluluk": 58.55
+        },
+        {
+          "konteyner_id": "K048",
+          "enlem": 38.012374,
+          "boylam": 32.523478,
+          "tahmin_doluluk": 58.78
+        },
+        {
+          "konteyner_id": "K067",
+          "enlem": 38.011735,
+          "boylam": 32.525627,
+          "tahmin_doluluk": 57.36
+        },
+        {
+          "konteyner_id": "K069",
+          "enlem": 38.012266,
+          "boylam": 32.526479,
+          "tahmin_doluluk": 56.05
+        },
+        {
+          "konteyner_id": "K074",
+          "enlem": 38.008248,
+          "boylam": 32.521941,
+          "tahmin_doluluk": 53.39
+        },
+        {
+          "konteyner_id": "K033",
+          "enlem": 38.008027,
+          "boylam": 32.523119,
+          "tahmin_doluluk": 59.22
+        },
+        {
+          "konteyner_id": "K037",
+          "enlem": 38.009221,
+          "boylam": 32.523203,
+          "tahmin_doluluk": 59.15
+        },
+        {
+          "konteyner_id": "K005",
+          "enlem": 38.009235,
+          "boylam": 32.521466,
+          "tahmin_doluluk": 59.56
+        },
+        {
+          "konteyner_id": "K028",
+          "enlem": 38.006567,
+          "boylam": 32.523031,
+          "tahmin_doluluk": 58.25
+        },
+        {
+          "konteyner_id": "K030",
+          "enlem": 38.007174,
+          "boylam": 32.523067,
+          "tahmin_doluluk": 59.14
+        },
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        }
+      ]
+    },
+    {
+      "kamyon_id": 4,
+      "konteyner_sayisi": 7,
+      "mesafe_metre": 11023,
+      "rota": [
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        },
+        {
+          "konteyner_id": "K093",
+          "enlem": 38.00902,
+          "boylam": 32.525212,
+          "tahmin_doluluk": 54.89
+        },
+        {
+          "konteyner_id": "K027",
+          "enlem": 38.006307,
+          "boylam": 32.522988,
+          "tahmin_doluluk": 59.94
+        },
+        {
+          "konteyner_id": "K072",
+          "enlem": 38.008221,
+          "boylam": 32.521326,
+          "tahmin_doluluk": 55.43
+        },
+        {
+          "konteyner_id": "K056",
+          "enlem": 38.008789,
+          "boylam": 32.520326,
+          "tahmin_doluluk": 54.93
+        },
+        {
+          "konteyner_id": "K044",
+          "enlem": 38.011242,
+          "boylam": 32.523336,
+          "tahmin_doluluk": 58.25
+        },
+        {
+          "konteyner_id": "K065",
+          "enlem": 38.011148,
+          "boylam": 32.524648,
+          "tahmin_doluluk": 57.43
+        },
+        {
+          "konteyner_id": "K051",
+          "enlem": 38.007525,
+          "boylam": 32.517983,
+          "tahmin_doluluk": 55.87
+        },
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        }
+      ]
+    },
+    {
+      "kamyon_id": 5,
+      "konteyner_sayisi": 8,
+      "mesafe_metre": 10090,
+      "rota": [
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        },
+        {
+          "konteyner_id": "K076",
+          "enlem": 38.008289,
+          "boylam": 32.522597,
+          "tahmin_doluluk": 54.67
+        },
+        {
+          "konteyner_id": "K058",
+          "enlem": 38.009344,
+          "boylam": 32.52132,
+          "tahmin_doluluk": 58.23
+        },
+        {
+          "konteyner_id": "K091",
+          "enlem": 38.008468,
+          "boylam": 32.525208,
+          "tahmin_doluluk": 54.63
+        },
+        {
+          "konteyner_id": "K090",
+          "enlem": 38.008105,
+          "boylam": 32.525156,
+          "tahmin_doluluk": 53.02
+        },
+        {
+          "konteyner_id": "K086",
+          "enlem": 38.007028,
+          "boylam": 32.524976,
+          "tahmin_doluluk": 55.45
+        },
+        {
+          "konteyner_id": "K045",
+          "enlem": 38.011498,
+          "boylam": 32.523381,
+          "tahmin_doluluk": 58.12
+        },
+        {
+          "konteyner_id": "K047",
+          "enlem": 38.012076,
+          "boylam": 32.523441,
+          "tahmin_doluluk": 56.48
+        },
+        {
+          "konteyner_id": "K053",
+          "enlem": 38.008073,
+          "boylam": 32.518986,
+          "tahmin_doluluk": 56.26
+        },
+        {
+          "konteyner_id": "DEPO",
+          "enlem": 38.009255,
+          "boylam": 32.523342,
+          "tahmin_doluluk": 0.0
+        }
+      ]
+    }
+  ]
+}
